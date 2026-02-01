@@ -1,37 +1,31 @@
-import db from './baza/db';
+import db from '@/app/baza/db';
 import { revalidatePath } from 'next/cache';
 import Link from 'next/link';
+
+import { Pencil, Trash2, PlusCircle, StickyNote } from 'lucide-react';
 
 type Note = {
   id: number;
   title: string;
   content: string;
-  created_at?: string;
 };
 
 async function addNote(formData: FormData) {
   'use server';
-  
   const title = formData.get('title') as string;
   const content = formData.get('content') as string;
 
   if (title && content) {
-    const stmt = db.prepare('INSERT INTO notes (title, content) VALUES (?, ?)');
-    stmt.run(title, content);
+    db.prepare('INSERT INTO notes (title, content) VALUES (?, ?)').run(title, content);
     revalidatePath('/');
   }
 }
 
-
 async function deleteNote(formData: FormData) {
   'use server';
-  
-
   const id = formData.get('id');
-  
   if (id) {
     db.prepare('DELETE FROM notes WHERE id = ?').run(id);
-
     revalidatePath('/');
   }
 }
@@ -40,70 +34,89 @@ export default function Home() {
   const notes = db.prepare('SELECT * FROM notes ORDER BY id DESC').all() as Note[];
 
   return (
-    <main className="max-w-4xl mx-auto p-10">
-      <h1 className="text-3xl font-bold mb-8 text-center">Notatnik</h1>
+    <main className="max-w-4xl mx-auto p-10 font-sans">
+      
+
+      <div className="flex items-center justify-center gap-3 mb-10">
+        <StickyNote size={40} className="text-blue-600" />
+        <h1 className="text-4xl font-bold text-gray-800">Twój Osobisty Inteligentny Notatnik</h1>
+      </div>
 
 
-      <div className="bg-gray-100 p-6 rounded-lg mb-10 shadow-sm border border-gray-200">
-        <h2 className="text-xl font-semibold mb-4 text-gray-700">Dodaj notatkę</h2>
+      <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 mb-10">
+        <h2 className="text-xl font-semibold mb-4 text-gray-700 flex items-center gap-2">
+          <PlusCircle size={20} className="text-green-600" />
+          Nowa notatka
+        </h2>
         <form action={addNote} className="flex flex-col gap-4">
           <input 
             name="title" 
-            placeholder="Tytuł..." 
-            className="p-2 border rounded focus:outline-blue-500" 
+            placeholder="Tytuł notatki..." 
+            className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition" 
             required
           />
           <textarea 
             name="content" 
-            placeholder="Treść..." 
-            className="p-2 border rounded focus:outline-blue-500" 
-            rows={3} 
+            placeholder="Treść notatki..." 
+            className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition h-24 resize-none" 
             required
           />
-          <button type="submit" className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition">
-            Dodaj
+          <button type="submit" className="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2 font-medium">
+            <PlusCircle size={18} />
+            Dodaj notatkę
           </button>
         </form>
       </div>
 
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {notes.map((note) => (
-          <div key={note.id} className="border p-5 rounded-lg shadow-sm bg-white hover:shadow-md transition relative group">
+          <div key={note.id} className="bg-white border border-gray-200 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow relative flex flex-col justify-between h-64">
             
-            <h3 className="font-bold text-lg mb-2 text-gray-800 pr-8">{note.title}</h3>
-            <p className="text-gray-600 mb-4 whitespace-pre-wrap">{note.content}</p>
+            <div>
+              <h3 className="font-bold text-xl text-gray-800 mb-2 line-clamp-1">{note.title}</h3>
+              <p className="text-gray-600 whitespace-pre-wrap line-clamp-4 text-sm leading-relaxed">
+                {note.content}
+              </p>
+            </div>
             
-            <div className="flex justify-between items-end mt-4">
-               <span className="text-xs text-gray-400">ID: {note.id}</span>
+            <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-100">
+               <span className="text-xs text-gray-400 font-mono">#{note.id}</span>
 
-               <form action={deleteNote}>
-                 <input type="hidden" name="id" value={note.id} />
-                 
-                 <button 
-                   type="submit" 
-                   className="bg-red-100 text-red-600 px-3 py-1 rounded text-sm hover:bg-red-600 hover:text-white transition"
-                 >
-                   Usuń
-                 </button>
-<Link 
-  href={`/edit/${note.id}`} 
-  className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded text-sm hover:bg-yellow-500 hover:text-white transition mr-2"
->
-  Edytuj
-</Link>
-               </form>
+               <div className="flex gap-3">
+
+                  <Link 
+                    href={`/edit/${note.id}`} 
+                    className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition text-sm font-medium bg-blue-50 px-3 py-1.5 rounded-md hover:bg-blue-100"
+                  >
+                    <Pencil size={16} />
+                    Edytuj
+                  </Link>
+
+
+                  <form action={deleteNote}>
+                    <input type="hidden" name="id" value={note.id} />
+                    <button 
+                      type="submit" 
+                      className="flex items-center gap-1 text-red-600 hover:text-red-800 transition text-sm font-medium bg-red-50 px-3 py-1.5 rounded-md hover:bg-red-100"
+                    >
+                      <Trash2 size={16} />
+                      Usuń
+                    </button>
+                  </form>
+               </div>
             </div>
 
           </div>
         ))}
-        
-        {notes.length === 0 && (
-          <p className="text-gray-500 text-center col-span-2 py-10">
-            Pusto tutaj... Dodaj pierwszą notatkę!
-          </p>
-        )}
       </div>
+      
+      {notes.length === 0 && (
+        <div className="text-center py-20 text-gray-400">
+          <StickyNote size={64} className="mx-auto mb-4 opacity-20" />
+          <p className="text-lg">Pusto tu... Dodaj pierwszą notatkę!</p>
+        </div>
+      )}
     </main>
   );
 }
