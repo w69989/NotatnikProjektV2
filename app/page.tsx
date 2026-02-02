@@ -23,7 +23,7 @@ const colors: Record<string, string> = {
 };
 
 const colorOptions = [
-  { value: 'blue', label: 'Standard' },
+  { value: 'blue', label: 'Standardowe' },
   { value: 'green', label: 'Osobiste' },
   { value: 'red', label: 'Ważne' },
   { value: 'yellow', label: 'Pomysły' },
@@ -31,10 +31,9 @@ const colorOptions = [
 
 // --- AI ---
 async function analyzeTextWithAI(text: string) {
-  // --- KLUCZ ---
   try {
-    const apiKey = "AIzaSyD_SdLyrPuj0D9GTZ23yOtDAK7AxcjosbI"; 
-    // --- JAK STRACIĆ ZMYSŁY W TRZECH PROSTYCH KROKACH (DO USUNIĘCIA) ---
+    //https://www.youtube.com/watch?v=njDSd8e6o70
+    const apiKey = process.env.GEMINI_API_KEY; 
     if (!apiKey) throw new Error("Brak klucza API");
 
     const genAI = new GoogleGenerativeAI(apiKey);
@@ -51,21 +50,14 @@ async function analyzeTextWithAI(text: string) {
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const jsonString = response.text().replace(/```json|```/g, '').trim();
-    
     return JSON.parse(jsonString);
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Nieznany błąd";
-    console.error("--- AI NIEDOSTĘPNE (Uruchomiono tryb offline) ---", errorMessage);
-
+    console.error("--- AI BŁĄD ---", errorMessage);
+    
     const fakeSummary = text.length > 60 ? text.substring(0, 60) + "..." : text;
-    const words = text.split(' ').filter(w => w.length > 4);
-    const fakeTags = words.slice(0, 3).join(', ') || "notatka, ogólne";
-
-    return { 
-      summary: `(Offline) ${fakeSummary}`, 
-      tags: fakeTags 
-    };
+    return { summary: `(Offline) ${fakeSummary}`, tags: "notatka, ogólne" };
   }
 }
 
@@ -83,8 +75,10 @@ async function addNote(formData: FormData) {
   if (title && content) {
     const aiData = await analyzeTextWithAI(content);
     
-    db.prepare('INSERT INTO notes (user_id, title, content, color, summary, tags) VALUES (?, ?, ?, ?, ?, ?)')
-      .run(userId, title, content, color, aiData.summary, aiData.tags);
+    await db.execute({
+      sql: 'INSERT INTO notes (user_id, title, content, color, summary, tags) VALUES (?, ?, ?, ?, ?, ?)',
+      args: [userId, title, content, color, aiData.summary, aiData.tags]
+    });
     revalidatePath('/');
   }
 }
@@ -92,11 +86,14 @@ async function addNote(formData: FormData) {
 async function deleteNote(formData: FormData) {
   'use server';
   const id = formData.get('id');
-  db.prepare('DELETE FROM notes WHERE id = ?').run(id);
+  await db.execute({
+    sql: 'DELETE FROM notes WHERE id = ?',
+    args: [id as string]
+  });
   revalidatePath('/');
 }
 
-// --- GŁÓWNY KOMPONENT ---
+// --- KOMPONENT ---
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ q?: string, mode?: string }> }) {
   const params = await searchParams;
@@ -105,75 +102,52 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ q
   
   const userId = await getSession();
 
-  // --- WIDOK DLA NIEZALOGOWANYCH ---
+  // WIDOK NIEZALOGOWANY
   if (!userId) {
     return (
       <main className="flex items-center justify-center min-h-screen bg-gray-100 font-sans">
         <div className="bg-white p-10 rounded-2xl shadow-xl w-full max-w-md text-center">
-          <div className="flex justify-center mb-6 text-blue-600">
-            <Lock size={64} />
-          </div>
+          <div className="flex justify-center mb-6 text-blue-600"><Lock size={64} /></div>
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Witaj w Notatniku</h1>
-          <p className="text-gray-500 mb-8">Zaloguj się, aby uzyskać dostęp do swoich prywatnych notatek.</p>
+          <p className="text-gray-500 mb-8">Zaloguj się, aby uzyskać dostęp do chmury.</p>
 
           <form action={mode === 'register' ? register : login} className="flex flex-col gap-4 text-left">
-            <div>
-                <label className="text-sm font-bold text-gray-700">Email</label>
-                <input name="email" type="email" placeholder="jan@kowalski.pl" className="w-full p-3 border border-gray-300 rounded-lg" required />
-            </div>
-            <div>
-                <label className="text-sm font-bold text-gray-700">Hasło</label>
-                <input name="password" type="password" placeholder="••••••••" className="w-full p-3 border border-gray-300 rounded-lg" required />
-            </div>
-            
-            <button className="bg-blue-600 text-white p-3 rounded-lg font-bold hover:bg-blue-700 transition mt-2">
-              {mode === 'register' ? 'Zarejestruj się' : 'Zaloguj się'}
-            </button>
+            <div><label className="text-sm font-bold text-gray-700">Email</label><input name="email" type="email" placeholder="jan@kowalski.pl" className="w-full p-3 border border-gray-300 rounded-lg" required /></div>
+            <div><label className="text-sm font-bold text-gray-700">Hasło</label><input name="password" type="password" placeholder="••••••••" className="w-full p-3 border border-gray-300 rounded-lg" required /></div>
+            <button className="bg-blue-600 text-white p-3 rounded-lg font-bold hover:bg-blue-700 transition mt-2">{mode === 'register' ? 'Zarejestruj się' : 'Zaloguj się'}</button>
           </form>
-
-          <div className="mt-6 text-sm">
-            {mode === 'register' ? (
-                <p>Masz już konto? <Link href="/" className="text-blue-600 font-bold hover:underline">Zaloguj się</Link></p>
-            ) : (
-                <p>Nie masz konta? <Link href="/?mode=register" className="text-blue-600 font-bold hover:underline">Zarejestruj się</Link></p>
-            )}
-          </div>
+          <div className="mt-6 text-sm">{mode === 'register' ? (<p>Masz już konto? <Link href="/" className="text-blue-600 font-bold hover:underline">Zaloguj się</Link></p>) : (<p>Nie masz konta? <Link href="/?mode=register" className="text-blue-600 font-bold hover:underline">Zarejestruj się</Link></p>)}</div>
         </div>
       </main>
     );
   }
 
-  // --- WIDOK DLA ZALOGOWANYCH ---
-  
-  let notes: Note[];
+  // WIDOK ZALOGOWANY
+  let notes: Note[] = [];
   
   if (query) {
-    notes = db.prepare('SELECT * FROM notes WHERE user_id = ? AND (title LIKE ? OR tags LIKE ?) ORDER BY created_at DESC')
-              .all(userId, `%${query}%`, `%${query}%`) as Note[];
+    const res = await db.execute({
+      sql: 'SELECT * FROM notes WHERE user_id = ? AND (title LIKE ? OR tags LIKE ?) ORDER BY created_at DESC',
+      args: [userId, `%${query}%`, `%${query}%`]
+    });
+    notes = res.rows as unknown as Note[];
   } else {
-    notes = db.prepare('SELECT * FROM notes WHERE user_id = ? ORDER BY created_at DESC').all(userId) as Note[];
+    const res = await db.execute({
+      sql: 'SELECT * FROM notes WHERE user_id = ? ORDER BY created_at DESC',
+      args: [userId]
+    });
+    notes = res.rows as unknown as Note[];
   }
 
   return (
     <main className="max-w-4xl mx-auto p-10 font-sans">
-      
       <div className="flex justify-between items-center mb-8">
-         <div className="flex items-center gap-2 text-gray-600">
-            <User size={20} />
-            <span className="font-medium">Użytkownik ID: {userId}</span>
-         </div>
-         <form action={logout}>
-            <button className="flex items-center gap-2 text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg transition font-medium">
-                <LogOut size={18} /> Wyloguj
-            </button>
-         </form>
+         <div className="flex items-center gap-2 text-gray-600"><User size={20} /><span className="font-medium">ID Użytkownika: {userId}</span></div>
+         <form action={logout}><button className="flex items-center gap-2 text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg transition font-medium"><LogOut size={18} /> Wyloguj</button></form>
       </div>
 
       <div className="flex flex-col items-center justify-center gap-3 mb-8">
-        <h1 className="text-4xl font-bold text-gray-800 flex gap-3 items-center">
-            <Sparkles className="text-purple-600" size={40}/> Twoje Notatki
-        </h1>
-        
+        <h1 className="text-4xl font-bold text-gray-800 flex gap-3 items-center"><Sparkles className="text-purple-600" size={40}/> Notatki w Chmurze</h1>
         <form className="flex gap-2 w-full max-w-md mt-4 relative">
             <input name="q" defaultValue={query} placeholder="Szukaj..." className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:outline-none" />
             <Search className="absolute left-3 top-2.5 text-gray-400" size={20} />
@@ -185,23 +159,14 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ q
       {!query && (
         <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 mb-10">
           <form action={addNote} className="flex flex-col gap-4">
-            <div className="flex gap-4">
-                <input name="title" placeholder="Tytuł..." className="flex-1 p-3 border border-gray-300 rounded-lg" required />
-                <select name="color" className="p-3 border border-gray-300 rounded-lg">{colorOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
-            </div>
+            <div className="flex gap-4"><input name="title" placeholder="Tytuł..." className="flex-1 p-3 border border-gray-300 rounded-lg" required /><select name="color" className="p-3 border border-gray-300 rounded-lg">{colorOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
             <textarea name="content" placeholder="Treść..." className="p-3 border border-gray-300 rounded-lg h-24 resize-none" required />
-            <button className="bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition flex items-center gap-2 font-medium justify-center">
-                <PlusCircle size={18}/> Dodaj
-            </button>
+            <button className="bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition flex items-center gap-2 font-medium justify-center"><PlusCircle size={18}/> Dodaj</button>
           </form>
         </div>
       )}
 
-      {query && (
-        <h2 className="text-xl font-semibold mb-4 text-gray-700">
-          Wyniki dla: <span className="text-blue-600">&quot;{query}&quot;</span> ({notes.length})
-        </h2>
-      )}
+      {query && <h2 className="text-xl font-semibold mb-4 text-gray-700">Wyniki dla: <span className="text-blue-600">&quot;{query}&quot;</span> ({notes.length})</h2>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {notes.map((note) => (
@@ -225,24 +190,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ q
           </div>
         ))}
       </div>
-
-      {notes.length === 0 && (
-        <div className="text-center py-20 text-gray-400">
-          {query ? (
-            <>
-                <Search size={64} className="mx-auto mb-4 opacity-20" />
-                <p className="text-lg">Nic nie znaleziono.</p>
-                <Link href="/" className="text-blue-500 underline mt-2 block">Wyczyść filtry</Link>
-            </>
-          ) : (
-            <>
-                <StickyNote size={64} className="mx-auto mb-4 opacity-20" />
-                <p className="text-lg">Brak notatek. Dodaj pierwszą powyżej!</p>
-            </>
-          )}
-        </div>
-      )}
-
+      {notes.length === 0 && <div className="text-center py-20 text-gray-400"><StickyNote size={64} className="mx-auto mb-4 opacity-20" /><p className="text-lg">{query ? "Nic nie znaleziono." : "Brak notatek. Dodaj pierwszą!"}</p></div>}
     </main>
   );
 }

@@ -1,31 +1,15 @@
-import Database from 'better-sqlite3';
-import path from 'path';
+import { createClient } from '@libsql/client';
 
-const dbPath = path.join(process.cwd(), 'notatnik.db');
-const db = new Database(dbPath);
+const url = process.env.TURSO_DATABASE_URL;
+const authToken = process.env.TURSO_AUTH_TOKEN;
 
-// UŻYTKOWNICY
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT UNIQUE,
-    password TEXT
-  )
-`);
+if (!url || !authToken) {
+  throw new Error('Ded');
+}
 
-// NOTATKI
-db.exec(`
-  CREATE TABLE IF NOT EXISTS notes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    title TEXT,
-    content TEXT,
-    color TEXT DEFAULT 'blue',
-    summary TEXT,
-    tags TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id)
-  )
-`);
+export const db = createClient({
+  url,
+  authToken,
+});
 
 export default db;

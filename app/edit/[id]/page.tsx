@@ -11,25 +11,36 @@ type Note = {
 
 async function updateNote(formData: FormData) {
   'use server';
-  const id = formData.get('id');
+  const id = formData.get('id') as string;
   const title = formData.get('title') as string;
   const content = formData.get('content') as string;
 
   if (title && content) {
-    db.prepare('UPDATE notes SET title = ?, content = ? WHERE id = ?').run(title, content, id);
+
+    await db.execute({
+      sql: 'UPDATE notes SET title = ?, content = ? WHERE id = ?',
+      args: [title, content, id]
+    });
     redirect('/');
   }
 }
 
 export default async function EditPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const note = db.prepare('SELECT * FROM notes WHERE id = ?').get(Number(id)) as Note;
 
-  if (!note) return <div>Nie znaleziono notatki.</div>;
+
+  const result = await db.execute({
+    sql: 'SELECT * FROM notes WHERE id = ?',
+    args: [id]
+  });
+  
+
+  const note = result.rows[0] as unknown as Note;
+
+  if (!note) return <div className="p-10 text-center">Nie znaleziono notatki.</div>;
 
   return (
     <main className="max-w-2xl mx-auto p-10 font-sans">
-      
       <div className="flex items-center gap-4 mb-8">
         <Link href="/" className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition">
           <ArrowLeft size={24} className="text-gray-600" />
