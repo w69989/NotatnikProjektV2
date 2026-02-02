@@ -2,7 +2,6 @@ import db from '@/app/baza/db';
 import { revalidatePath } from 'next/cache';
 import Link from 'next/link';
 import { Pencil, Trash2, PlusCircle, Sparkles, LogOut, User, Lock, Tag, Calendar, Search, X, StickyNote } from 'lucide-react';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { login, register, logout, getSession } from '@/app/auth';
 
 type Note = {
@@ -29,15 +28,22 @@ const colorOptions = [
   { value: 'yellow', label: 'Pomysły' },
 ];
 
-// --- AI ---
+// --- TYPY DLA AI ---
+type GeminiResponse = {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string;
+      }>
+    }
+  }>
+};
+
+// --- FUNKCJA AI ---
 async function analyzeTextWithAI(text: string) {
   try {
-    //https://www.youtube.com/watch?v=njDSd8e6o70
     const apiKey = process.env.GEMINI_API_KEY; 
     if (!apiKey) throw new Error("Brak klucza API");
-
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
     const prompt = `
       Jesteś asystentem notatnika. Przeanalizuj ten tekst: "${text}".
@@ -47,17 +53,46 @@ async function analyzeTextWithAI(text: string) {
       Nie dodawaj żadnych markdownów, czysty JSON.
     `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const jsonString = response.text().replace(/```json|```/g, '').trim();
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{ text: prompt }]
+        }]
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Błąd HTTP Google: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json() as GeminiResponse; 
+    
+    const textResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    if (!textResponse) throw new Error("Pusta odpowiedź od AI");
+
+    const jsonString = textResponse.replace(/```json|```/g, '').trim();
     return JSON.parse(jsonString);
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Nieznany błąd";
-    console.error("--- AI BŁĄD ---", errorMessage);
-    
+    console.error("--- AI REST ERROR ---", errorMessage);
+
+    //help
     const fakeSummary = text.length > 60 ? text.substring(0, 60) + "..." : text;
-    return { summary: `(Offline) ${fakeSummary}`, tags: "notatka, ogólne" };
+    const words = text.split(' ').filter(w => w.length > 4);
+    const fakeTags = words.slice(0, 3).join(', ') || "notatka, ogólne";
+
+    return { 
+      summary: `(Offline) ${fakeSummary}`, 
+      tags: fakeTags 
+    };
   }
 }
 
