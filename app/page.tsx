@@ -2,8 +2,10 @@ import db from '@/app/baza/db';
 import { revalidatePath } from 'next/cache';
 import Link from 'next/link';
 import { Pencil, Trash2, PlusCircle, Sparkles, LogOut, User, Lock, Tag, Calendar, Search, X, StickyNote } from 'lucide-react';
+import { GoogleGenAI } from "@google/genai";
 import { login, register, logout, getSession } from '@/app/auth';
 
+// --- TYPY ---
 type Note = {
   id: number;
   title: string;
@@ -22,28 +24,20 @@ const colors: Record<string, string> = {
 };
 
 const colorOptions = [
-  { value: 'blue', label: 'Standardowe' },
+  { value: 'blue', label: 'Standard' },
   { value: 'green', label: 'Osobiste' },
   { value: 'red', label: 'Ważne' },
   { value: 'yellow', label: 'Pomysły' },
 ];
 
-// --- TYPY DLA AI ---
-type GeminiResponse = {
-  candidates?: Array<{
-    content?: {
-      parts?: Array<{
-        text?: string;
-      }>
-    }
-  }>
-};
-
-// --- FUNKCJA AI ---
+// --- AI ---
 async function analyzeTextWithAI(text: string) {
   try {
+    // https://www.youtube.com/watch?v=njDSd8e6o70
     const apiKey = process.env.GEMINI_API_KEY; 
     if (!apiKey) throw new Error("Brak klucza API");
+
+    const ai = new GoogleGenAI({ apiKey });
 
     const prompt = `
       Jesteś asystentem notatnika. Przeanalizuj ten tekst: "${text}".
@@ -53,38 +47,20 @@ async function analyzeTextWithAI(text: string) {
       Nie dodawaj żadnych markdownów, czysty JSON.
     `;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{ text: prompt }]
-        }]
-      })
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash", 
+      contents: prompt,
     });
-
-    if (!response.ok) {
-      throw new Error(`Błąd HTTP Google: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json() as GeminiResponse; 
+    const responseText = response.text ? response.text.toString() : ''; 
     
-    const textResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    
-    if (!textResponse) throw new Error("Pusta odpowiedź od AI");
+    if (!responseText) throw new Error("Pusta odpowiedź AI");
 
-    const jsonString = textResponse.replace(/```json|```/g, '').trim();
+    const jsonString = responseText.replace(/```json|```/g, '').trim();
     return JSON.parse(jsonString);
 
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Nieznany błąd";
-    console.error("--- AI REST ERROR ---", errorMessage);
-
-    //help
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("--- AI NOWA BIBLIOTEKA BŁĄD ---", errorMessage);
     const fakeSummary = text.length > 60 ? text.substring(0, 60) + "..." : text;
     const words = text.split(' ').filter(w => w.length > 4);
     const fakeTags = words.slice(0, 3).join(', ') || "notatka, ogólne";
@@ -96,7 +72,7 @@ async function analyzeTextWithAI(text: string) {
   }
 }
 
-// --- CRUD ---
+// --- AKCJE CRUD ---
 
 async function addNote(formData: FormData) {
   'use server';
@@ -128,7 +104,7 @@ async function deleteNote(formData: FormData) {
   revalidatePath('/');
 }
 
-// --- KOMPONENT ---
+// --- POBIERANIE DANYCH ---
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ q?: string, mode?: string }> }) {
   const params = await searchParams;
@@ -137,14 +113,13 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ q
   
   const userId = await getSession();
 
-  // WIDOK NIEZALOGOWANY
   if (!userId) {
     return (
       <main className="flex items-center justify-center min-h-screen bg-gray-100 font-sans">
         <div className="bg-white p-10 rounded-2xl shadow-xl w-full max-w-md text-center">
           <div className="flex justify-center mb-6 text-blue-600"><Lock size={64} /></div>
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Witaj w Notatniku</h1>
-          <p className="text-gray-500 mb-8">Zaloguj się, aby uzyskać dostęp do chmury.</p>
+          <p className="text-gray-500 mb-8">Zaloguj się, aby uzyskać dostęp.</p>
 
           <form action={mode === 'register' ? register : login} className="flex flex-col gap-4 text-left">
             <div><label className="text-sm font-bold text-gray-700">Email</label><input name="email" type="email" placeholder="jan@kowalski.pl" className="w-full p-3 border border-gray-300 rounded-lg" required /></div>
@@ -157,7 +132,6 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ q
     );
   }
 
-  // WIDOK ZALOGOWANY
   let notes: Note[] = [];
   
   if (query) {
@@ -177,12 +151,12 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ q
   return (
     <main className="max-w-4xl mx-auto p-10 font-sans">
       <div className="flex justify-between items-center mb-8">
-         <div className="flex items-center gap-2 text-gray-600"><User size={20} /><span className="font-medium">ID Użytkownika: {userId}</span></div>
+         <div className="flex items-center gap-2 text-gray-600"><User size={20} /><span className="font-medium">Użytkownik: {userId}</span></div>
          <form action={logout}><button className="flex items-center gap-2 text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg transition font-medium"><LogOut size={18} /> Wyloguj</button></form>
       </div>
 
       <div className="flex flex-col items-center justify-center gap-3 mb-8">
-        <h1 className="text-4xl font-bold text-gray-800 flex gap-3 items-center"><Sparkles className="text-purple-600" size={40}/> Notatki w Chmurze</h1>
+        <h1 className="text-4xl font-bold text-gray-800 flex gap-3 items-center"><Sparkles className="text-purple-600" size={40}/> Notatki</h1>
         <form className="flex gap-2 w-full max-w-md mt-4 relative">
             <input name="q" defaultValue={query} placeholder="Szukaj..." className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:outline-none" />
             <Search className="absolute left-3 top-2.5 text-gray-400" size={20} />
