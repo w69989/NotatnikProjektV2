@@ -1,32 +1,38 @@
-import Link from 'next/link';
-import './globals.css';
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import Link from "next/link";
+import "./globals.css";
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+const inter = Inter({ subsets: ["latin"] });
+
+export const metadata: Metadata = {
+  title: "Twój Osobisty Inteligentny Notatnik",
+  description: "Twój notatnik w chmurze",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html lang="pl">
-      <body className="flex flex-col min-h-screen">
-
-        <header className="bg-slate-900 text-white p-4">
-          <nav className="container mx-auto flex justify-between items-center">
-            <div className="text-xl font-bold">Inteligentny Notatnik</div>
-            <ul className="flex gap-4">
-              <li><Link href="/" className="hover:text-blue-400">Home</Link></li>
-              <li><Link href="/about" className="hover:text-blue-400">O nas</Link></li>
-              <li><Link href="/contact" className="hover:text-blue-400">Kontakt</Link></li>
-            </ul>
-          </nav>
-        </header>
-
-
-        <main className="grow container mx-auto p-4">
+      <body className={`${inter.className} bg-gray-50 text-gray-900 min-h-screen flex flex-col`}>
+        <div className="grow">
           {children}
-        </main>
-
-
-        <footer className="bg-slate-100 text-center p-4 mt-8 border-t">
-          <p>&copy; 2026 Inteligentny Notatnik</p>
+        </div>
+        
+        <footer className="bg-white border-t border-gray-200 py-6 mt-10">
+          <div className="max-w-4xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center text-sm text-gray-500">
+            <p>&copy; {new Date().getFullYear()} Inteligentny Notatnik</p>
+            <div className="flex gap-6 mt-4 md:mt-0">
+              <Link href="/about" className="hover:text-blue-600 transition">O nas</Link>
+              <Link href="/contact" className="hover:text-blue-600 transition">Kontakt</Link>
+            </div>
+          </div>
         </footer>
+
       </body>
     </html>
   );
-} 
+}
