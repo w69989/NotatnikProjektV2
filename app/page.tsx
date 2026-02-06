@@ -1,7 +1,7 @@
 import db from '@/app/baza/db';
 import { revalidatePath } from 'next/cache';
 import Link from 'next/link';
-import { Pencil, Trash2, PlusCircle, Sparkles, LogOut, User, Lock, Tag, Calendar, Search, X, StickyNote,AlertCircle } from 'lucide-react';
+import { Pencil, Trash2, PlusCircle, Sparkles, LogOut, User, Lock, Tag, Calendar, Search, X, StickyNote, AlertCircle } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import { login, register, logout, getSession } from '@/app/auth';
 
@@ -125,8 +125,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ q
   if (!userId) {
     return (
       <main className="flex items-center justify-center min-h-screen bg-gray-100 font-sans p-4">
-        <div className="bg-white p-8 md:p-10 rounded-2xl shadow-xl w-full max-w-md text-center">
-          <div className="flex justify-center mb-6 text-blue-600"><Lock size={64} /></div>
+        <section className="bg-white p-8 md:p-10 rounded-2xl shadow-xl w-full max-w-md text-center">
+          <header className="flex justify-center mb-6 text-blue-600"><Lock size={64} /></header>
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Twój Osobisty Inteligentny Notatnik</h1>
           <p className="text-gray-500 mb-8">Zaloguj się, aby uzyskać dostęp.</p>
 
@@ -152,14 +152,14 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ q
             </button>
           </form>
 
-          <div className="mt-6 text-sm text-gray-600">
+          <footer className="mt-6 text-sm text-gray-600">
             {mode === 'register' ? (
                 <p>Masz już konto? <Link href="/" className="text-blue-600 font-bold hover:underline">Zaloguj się</Link></p>
             ) : (
                 <p>Nie masz konta? <Link href="/?mode=register" className="text-blue-600 font-bold hover:underline">Zarejestruj się</Link></p>
             )}
-          </div>
-        </div>
+          </footer>
+        </section>
       </main>
     );
   }
@@ -184,7 +184,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ q
 
   return (
     <main className="max-w-4xl mx-auto p-6 md:p-10 font-sans">
-      <div className="flex justify-between items-center mb-8">
+      <header className="flex justify-between items-center mb-8">
          <div className="flex items-center gap-2 text-gray-600 bg-white px-4 py-2 rounded-full shadow-sm border border-gray-100">
             <User size={18} />
             <span className="font-medium text-sm">ID: {userId}</span>
@@ -194,9 +194,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ q
                 <LogOut size={18} /> Wyloguj
             </button>
          </form>
-      </div>
+      </header>
 
-      <div className="flex flex-col items-center justify-center gap-3 mb-8">
+      <section className="flex flex-col items-center justify-center gap-3 mb-8">
         <h1 className="text-4xl font-bold text-gray-800 flex gap-3 items-center">
             <Sparkles className="text-purple-600" size={32}/> Twoje Notatki
         </h1>
@@ -207,10 +207,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ q
             <button className="bg-purple-600 text-white px-6 rounded-full hover:bg-purple-700 transition font-medium shadow-md">Szukaj</button>
             {query && <Link href="/" className="flex items-center justify-center bg-gray-200 text-gray-600 w-10 rounded-full ml-1 hover:bg-gray-300 transition"><X size={20}/></Link>}
         </form>
-      </div>
+      </section>
 
       {!query && (
-        <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 mb-10 transition hover:shadow-lg">
+        <section className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 mb-10 transition hover:shadow-lg">
           <form action={addNote} className="flex flex-col gap-4">
             <div className="flex gap-4">
                 <input name="title" placeholder="Tytuł notatki..." className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-200 outline-none" required />
@@ -221,21 +221,21 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ q
                 <PlusCircle size={18}/> Dodaj notatkę
             </button>
           </form>
-        </div>
+        </section>
       )}
 
       {query && <h2 className="text-xl font-semibold mb-4 text-gray-700">Wyniki wyszukiwania: <span className="text-purple-600">&quot;{query}&quot;</span> ({notes.length})</h2>}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {notes.map((note) => (
-          <div key={note.id} className={`p-6 rounded-xl shadow-sm hover:shadow-lg transition relative flex flex-col h-auto border border-gray-100 ${colors[note.color] || colors.blue}`}>
-            <div className="flex justify-between items-start mb-2">
+          <article key={note.id} className={`p-6 rounded-xl shadow-sm hover:shadow-lg transition relative flex flex-col h-auto border border-gray-100 ${colors[note.color] || colors.blue}`}>
+            <header className="flex justify-between items-start mb-2">
                 <h3 className="font-bold text-xl text-gray-800 line-clamp-1 pr-2">{note.title}</h3>
                 <div className="flex items-center gap-1 text-xs text-gray-500 bg-white/60 px-2 py-1 rounded-full"><Calendar size={12}/> {new Date(note.created_at).toLocaleDateString('pl-PL')}</div>
-            </div>
+            </header>
             {note.summary && <div className="mb-3 bg-white/70 p-2 rounded-lg text-sm text-gray-800 italic border border-gray-200/50 backdrop-blur-sm"><Sparkles size={12} className="inline mr-1 text-purple-600"/>{note.summary}</div>}
             <p className="text-gray-700 text-sm mb-4 line-clamp-4 whitespace-pre-wrap leading-relaxed">{note.content}</p>
-            <div className="mt-auto">
+            <footer className="mt-auto">
                 {note.tags && <div className="flex flex-wrap gap-2 mb-4">{note.tags.split(',').map((t: string, i: number) => <span key={i} className="bg-white/80 px-2 py-1 rounded text-xs font-semibold text-gray-600 flex items-center gap-1 shadow-sm"><Tag size={10}/>{t.trim()}</span>)}</div>}
                 <div className="flex justify-between items-center pt-4 border-t border-gray-200/50">
                     <span className="text-xs text-gray-400">ID: {note.id}</span>
@@ -244,10 +244,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ q
                         <form action={deleteNote}><input type="hidden" name="id" value={note.id.toString()}/><button className="text-red-600 hover:text-red-800 transition"><Trash2 size={18}/></button></form>
                     </div>
                 </div>
-            </div>
-          </div>
+            </footer>
+          </article>
         ))}
-      </div>
+      </section>
       {notes.length === 0 && <div className="text-center py-20 text-gray-400"><StickyNote size={64} className="mx-auto mb-4 opacity-20" /><p className="text-lg">{query ? "Nic nie znaleziono." : "Brak notatek. Dodaj pierwszą!"}</p></div>}
     </main>
   );

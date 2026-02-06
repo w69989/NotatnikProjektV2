@@ -25,10 +25,10 @@ export default function RootLayout({
         <footer className="bg-white border-t border-gray-200 py-6 mt-10">
           <div className="max-w-4xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center text-sm text-gray-500">
             <p>&copy; {new Date().getFullYear()} Inteligentny Notatnik</p>
-            <div className="flex gap-6 mt-4 md:mt-0">
+            <nav className="flex gap-6 mt-4 md:mt-0">
               <Link href="/about" className="hover:text-blue-600 transition">O nas</Link>
               <Link href="/contact" className="hover:text-blue-600 transition">Kontakt</Link>
-            </div>
+            </nav>
           </div>
         </footer>
 
